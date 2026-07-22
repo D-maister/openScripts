@@ -1,13 +1,13 @@
 /**
  * TW Attack Tracker
  * Отслеживает время отправки атак в Tribal Wars
- * Версия: 1.0
+ * Версия: 1.1
  */
 
 (function() {
     'use strict';
     
-    console.log('=== TW Attack Tracker v1.0 ===');
+    console.log('=== TW Attack Tracker v1.1 ===');
     console.log('🔄 Инициализация...');
     
     // Находим таблицу с атаками
@@ -93,12 +93,69 @@
         console.log('✅ Панель вставлена перед таблицей');
     }
     
+    // Функция для отправки тестового уведомления
+    function sendTestNotification(closestInfo) {
+        if (Notification.permission === 'granted') {
+            var message = '✅ Скрипт запущен!\n';
+            if (closestInfo) {
+                message += 'Ближайшая атака ID ' + closestInfo.id + ' через ' + closestInfo.time;
+            } else {
+                message += 'Нет будущих атак для отслеживания';
+            }
+            
+            new Notification('⚔️ TW Attack Tracker', {
+                body: message,
+                icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEJSURBVDhPY2AYBeRjgAL4VH4w/P//n+G/xBGG31K3GLmT7Bj+p/2E8Fk0GX5JG2TkBf5nZGD4DyY8xcCyz+Daf4ZBwvD//394NTx69Ihh8eLFDMnJyczXrl2DmwFE7uTkhtA///4DGRB14c+fdwwv9qWCVTHCyb9//8JpoV1hYJrhx48fDOfOnWNYtGgR3DkMDAzst2/fhpsBhAFB/f96hQw///7l+vXzE8NftRZg8HH8+vULribI1hgYGIiNjY04mJkZz86eDHKj6p8/f24Tgxl//fq1wP///yd8//79KLHGA0XH9OnTzd+9e/czuG5mwO0XnysMNh3C+X7u1x9iBfCbCeICJCaYI4kE6QAA3ePNzuvsNs0AAAAASUVORK5CYII='
+            });
+            console.log('✅ Тестовое уведомление отправлено');
+        } else if (Notification.permission === 'default') {
+            console.log('⏳ Разрешение на уведомления будет запрошено');
+        } else {
+            console.warn('⚠️ Уведомления запрещены, тестовое уведомление не отправлено');
+        }
+    }
+    
     // Запрашиваем разрешение на уведомления, если нужно
     if (Notification.permission === 'default') {
-        Notification.requestPermission();
-        console.log('⏳ Запрошено разрешение на уведомления');
+        Notification.requestPermission().then(function(perm) {
+            console.log('✅ Разрешение на уведомления: ' + perm);
+            if (perm === 'granted') {
+                // После получения разрешения отправляем тестовое уведомление
+                setTimeout(function() {
+                    var data = getNextAttack();
+                    if (data && data.row && data.time !== null) {
+                        var minutes = Math.floor(data.time / 60000);
+                        var hours = Math.floor(minutes / 60);
+                        var mins = minutes % 60;
+                        var timeStr = hours > 0 ? hours + 'ч ' + mins + 'мин' : mins + ' мин';
+                        sendTestNotification({
+                            id: data.row.dataset.attackId || '?',
+                            time: timeStr
+                        });
+                    } else {
+                        sendTestNotification(null);
+                    }
+                }, 500);
+            }
+        });
     } else if (Notification.permission === 'granted') {
         console.log('✅ Уведомления разрешены');
+        // Отправляем тестовое уведомление сразу после запуска
+        setTimeout(function() {
+            var data = getNextAttack();
+            if (data && data.row && data.time !== null) {
+                var minutes = Math.floor(data.time / 60000);
+                var hours = Math.floor(minutes / 60);
+                var mins = minutes % 60;
+                var timeStr = hours > 0 ? hours + 'ч ' + mins + 'мин' : mins + ' мин';
+                sendTestNotification({
+                    id: data.row.dataset.attackId || '?',
+                    time: timeStr
+                });
+            } else {
+                sendTestNotification(null);
+            }
+        }, 500);
     } else {
         console.warn('⚠️ Уведомления запрещены в браузере');
     }
@@ -120,8 +177,6 @@
         var closestTime = null;
         var totalAttacks = 0;
         var futureAttacks = 0;
-        
-        console.log('🔍 Поиск атак... Найдено строк: ' + rows.length);
         
         for (var i = 0; i < rows.length; i++) {
             var cells = rows[i].querySelectorAll('td');
@@ -168,15 +223,6 @@
                     }
                 }
             }
-        }
-        
-        console.log('📊 Всего атак: ' + totalAttacks + ', будущих: ' + futureAttacks);
-        
-        if (closest && closestTime !== null) {
-            var minutes = Math.floor(closestTime / 60000);
-            console.log('🎯 Ближайшая атака ID: ' + closest.dataset.attackId + ', через ' + minutes + ' минут');
-        } else {
-            console.log('⏳ Нет будущих атак');
         }
         
         // Обновляем элементы панели
@@ -289,7 +335,6 @@
         // Подсвечиваем строку с ближайшей атакой
         data.row.style.filter = 'hue-rotate(45deg) brightness(1.05)';
         data.row.style.transition = 'filter 0.5s ease';
-        console.log('🟢 Подсвечена строка ID: ' + data.row.dataset.attackId);
         
         var diff = data.time;
         if (diff <= 0 || diff > 1800000) return; // Игнорируем атаки дальше 30 минут
