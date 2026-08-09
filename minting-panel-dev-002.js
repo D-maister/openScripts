@@ -282,64 +282,149 @@
 			const tempDiv = document.createElement('div');
 			tempDiv.innerHTML = html;
 			
-			const villageContainers = tempDiv.querySelectorAll('table.overview-container-item');
 			this.villages = [];
 			
-			for (const container of villageContainers) {
-				const containerId = container.getAttribute('id');
-				if (!containerId) continue;
-				
-				let villageId = containerId;
-				if (containerId.startsWith('v_')) {
-					villageId = containerId.replace('v_', '');
+			// Пробуем найти таблицу зданий (ПК версия)
+			let table = tempDiv.querySelector('#buildings_table');
+			let rows = [];
+			
+			if (table) {
+				// ПК версия - ищем строки с id="v_XXX"
+				rows = table.querySelectorAll('tr[id^="v_"]');
+			} else {
+				// Мобильная/новая версия - ищем контейнеры с классом overview-container-item
+				const containers = tempDiv.querySelectorAll('table.overview-container-item');
+				for (const container of containers) {
+					const containerId = container.getAttribute('id');
+					if (!containerId) continue;
+					
+					// Создаем объект для единообразной обработки
+					const row = {
+						container: container,
+						id: containerId.startsWith('v_') ? containerId.replace('v_', '') : containerId,
+						isContainer: true
+					};
+					rows.push(row);
 				}
+			}
+			
+			for (const row of rows) {
+				let villageId, name = '', coord = '', level = 0, warehouse = 0, queueCount = 0;
+				let snobCell = null;
 				
-				const quickeditSpan = container.querySelector('.quickedit-vn');
-				let name = '', coord = '';
-				if (quickeditSpan) {
-					const labelSpan = quickeditSpan.querySelector('.quickedit-label');
-					if (labelSpan) {
-						const fullText = labelSpan.textContent.trim();
-						const coordMatch = fullText.match(/\((\d{1,3}\|\d{1,3})\)/);
-						if (coordMatch) {
-							coord = coordMatch[1];
-							name = fullText.replace(/\(\d{1,3}\|\d{1,3}\)/, '').trim();
-						} else {
-							name = fullText;
-							coord = '?|?';
+				if (row.isContainer) {
+					// Мобильная версия
+					const container = row.container;
+					villageId = row.id;
+					
+					// Название и координаты
+					const quickeditSpan = container.querySelector('.quickedit-vn');
+					if (quickeditSpan) {
+						const labelSpan = quickeditSpan.querySelector('.quickedit-label');
+						if (labelSpan) {
+							const fullText = labelSpan.textContent.trim();
+							const coordMatch = fullText.match(/\((\d{1,3}\|\d{1,3})\)/);
+							if (coordMatch) {
+								coord = coordMatch[1];
+								name = fullText.replace(/\(\d{1,3}\|\d{1,3}\)/, '').trim();
+							} else {
+								name = fullText;
+								coord = '?|?';
+							}
+							name = name.replace(/\s*K\d{1,2}\s*$/, '').trim();
 						}
-						name = name.replace(/\s*K\d{1,2}\s*$/, '').trim();
+					}
+					
+					// Особняк
+					snobCell = container.querySelector('.building_snob');
+					if (snobCell) {
+						const levelText = snobCell.textContent.trim();
+						const hiddenSpan = snobCell.querySelector('.hidden');
+						if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
+							level = 0;
+						} else {
+							level = parseInt(levelText) || 0;
+						}
+					}
+					
+					// Склад
+					const storageCell = container.querySelector('.building_storage');
+					if (storageCell) {
+						const storageText = storageCell.textContent.trim();
+						const hiddenSpan = storageCell.querySelector('.hidden');
+						if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
+							warehouse = 0;
+						} else {
+							warehouse = parseInt(storageText) || 0;
+						}
+					}
+					
+					// Очередь строительства
+					const orderUl = container.querySelector('.building_order');
+					if (orderUl) {
+						const images = orderUl.querySelectorAll('img');
+						queueCount = images.length;
+					}
+					
+				} else {
+					// ПК версия
+					const tr = row;
+					const idMatch = tr.id.match(/v_(\d+)/);
+					if (!idMatch) continue;
+					villageId = idMatch[1];
+					
+					// Название и координаты
+					const quickeditSpan = tr.querySelector('.quickedit-vn');
+					if (quickeditSpan) {
+						const labelSpan = quickeditSpan.querySelector('.quickedit-label');
+						if (labelSpan) {
+							const fullText = labelSpan.textContent.trim();
+							const coordMatch = fullText.match(/\((\d{1,3}\|\d{1,3})\)/);
+							if (coordMatch) {
+								coord = coordMatch[1];
+								name = fullText.replace(/\(\d{1,3}\|\d{1,3}\)/, '').trim();
+							} else {
+								name = fullText;
+								coord = '?|?';
+							}
+							name = name.replace(/\s*K\d{1,2}\s*$/, '').trim();
+						}
+					}
+					
+					// Особняк (ищем ячейку с классом b_snob)
+					snobCell = tr.querySelector('.b_snob');
+					if (snobCell) {
+						const levelText = snobCell.textContent.trim();
+						const hiddenSpan = snobCell.querySelector('.hidden');
+						if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
+							level = 0;
+						} else {
+							level = parseInt(levelText) || 0;
+						}
+					}
+					
+					// Склад (ищем ячейку с классом b_storage)
+					const storageCell = tr.querySelector('.b_storage');
+					if (storageCell) {
+						const storageText = storageCell.textContent.trim();
+						const hiddenSpan = storageCell.querySelector('.hidden');
+						if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
+							warehouse = 0;
+						} else {
+							warehouse = parseInt(storageText) || 0;
+						}
+					}
+					
+					// Очередь строительства
+					const orderUl = tr.querySelector('ul[id^="building_order_"]');
+					if (orderUl) {
+						const items = orderUl.querySelectorAll('li.order');
+						queueCount = items.length;
 					}
 				}
 				
-				const snobCell = container.querySelector('.building_snob');
-				if (!snobCell) continue;
-				
-				const levelText = snobCell.textContent.trim();
-				const level = parseInt(levelText) || 0;
+				// Пропускаем деревни без особняка
 				if (level < 1) continue;
-				
-				const hiddenSpan = snobCell.querySelector('.hidden');
-				if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) continue;
-				
-				let warehouse = 0;
-				const storageCell = container.querySelector('.building_storage');
-				if (storageCell) {
-					const storageText = storageCell.textContent.trim();
-					const hiddenSpanStorage = storageCell.querySelector('.hidden');
-					if (hiddenSpanStorage && parseInt(hiddenSpanStorage.textContent.trim()) === 0) {
-						warehouse = 0;
-					} else {
-						warehouse = parseInt(storageText) || 0;
-					}
-				}
-				
-				let queueCount = 0;
-				const orderUl = container.querySelector('.building_order');
-				if (orderUl) {
-					const images = orderUl.querySelectorAll('img');
-					queueCount = images.length;
-				}
 				
 				this.villages.push({
 					id: villageId,
@@ -358,6 +443,7 @@
 				});
 			}
 			
+			// Загружаем сохраненное состояние автозапуска
 			this.loadAutoStartState();
 		},
         
