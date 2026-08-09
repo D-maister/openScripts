@@ -256,7 +256,29 @@
         },
         
         // Получение списка деревень с особняком
-        parseVillagesWithSnob: function(html) {
+        fetchVillagesWithSnob: function() {
+            return new Promise((resolve, reject) => {
+                const baseUrl = this.getBaseUrl();
+                const url = `${baseUrl}/game.php?screen=overview_villages&mode=buildings`;
+                
+                fetch(url, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'ru,en;q=0.9'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    this.parseVillagesWithSnob(html);
+                    resolve(this.villages);
+                })
+                .catch(error => reject(error));
+            });
+        },
+        
+		parseVillagesWithSnob: function(html) {
 			console.log('[SnobMinter] ===== ПАРСИНГ ДЕРЕВЕНЬ С ОСОБНЯКОМ =====');
 			console.log('[SnobMinter] HTML получен, длина:', html.length);
 			
