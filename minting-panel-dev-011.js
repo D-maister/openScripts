@@ -63,7 +63,7 @@
                 cancelError: "❌ Ошибка при остановке",
                 cancelConfirm: "Остановить чеканку в деревне {village}?",
                 lastUpdate: "Последнее обновление",
-                autoStart: "🔄 Автозапуск",
+                autoStart: " Автозапуск",
                 nobleInfo: "Информация о дворянах",
                 canTrain: "Можно обучить дворян",
                 currentLimit: "Текущий лимит дворянства",
@@ -1477,7 +1477,7 @@
                 <div style="max-height: 500px; overflow-y: auto; background: white; border-radius: 4px;">
                     <table class="vis" style="width: 100%; font-size: 12px; min-width: 750px;">
                         <thead>
-                            <tr style="background: #6c757d; color: white;">
+                            <tr style="background: #6c757d; color: black;">
                                 <th style="width: 40px; padding: 8px;">
                                     <input type="checkbox" id="snob-header-checkbox">
                                 </th>
