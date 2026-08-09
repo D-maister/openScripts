@@ -287,7 +287,6 @@
 			
 			this.villages = [];
 			
-			// Пробуем найти таблицу зданий
 			let table = tempDiv.querySelector('#buildings_table');
 			console.log('[SnobMinter] Таблица #buildings_table найдена:', !!table);
 			
@@ -299,12 +298,10 @@
 			let isMobile = false;
 			
 			if (table) {
-				// Проверяем, есть ли внутри таблица с классом overview-container-item (мобильная версия)
 				const innerContainers = table.querySelectorAll('table.overview-container-item');
 				console.log('[SnobMinter] Найдено внутренних контейнеров overview-container-item:', innerContainers.length);
 				
 				if (innerContainers.length > 0) {
-					// Мобильная версия
 					isMobile = true;
 					console.log('[SnobMinter] Определена МОБИЛЬНАЯ версия');
 					
@@ -313,7 +310,6 @@
 						console.log('[SnobMinter] Контейнер ID:', containerId);
 						
 						if (!containerId) continue;
-						// Проверяем, что это контейнер деревни (имеет ID вида "426")
 						if (/^\d+$/.test(containerId)) {
 							console.log('[SnobMinter] Добавлен контейнер деревни:', containerId);
 							rows.push({
@@ -326,7 +322,6 @@
 						}
 					}
 				} else {
-					// ПК версия
 					console.log('[SnobMinter] Определена ПК версия');
 					const trs = table.querySelectorAll('tr[id^="v_"]');
 					console.log('[SnobMinter] Найдено строк с id="v_XXX":', trs.length);
@@ -337,7 +332,6 @@
 					}
 				}
 			} else {
-				// Альтернативный поиск для мобильной версии (если таблица не найдена)
 				console.log('[SnobMinter] Таблица #buildings_table НЕ найдена, ищем альтернативно');
 				const containers = tempDiv.querySelectorAll('table.overview-container-item');
 				console.log('[SnobMinter] Найдено контейнеров overview-container-item:', containers.length);
@@ -397,85 +391,103 @@
 						}
 					}
 					
-					// В мобильной версии таблица с уровнями зданий находится внутри контейнера
-					// Ищем таблицу с классами зданий внутри контейнера
-					const innerTable = container.querySelector('table.overview-container-item');
-					console.log('[SnobMinter] Внутренняя таблица с уровнями найдена:', !!innerTable);
+					// В мобильной версии таблица с уровнями находится в следующей строке
+					// Находим родительский tr контейнера
+					const containerParentTr = container.closest('tr');
+					console.log('[SnobMinter] Родительский tr контейнера найден:', !!containerParentTr);
 					
-					if (innerTable) {
-						// Особняк - ищем ячейку с классом building_snob (без привязки к ID)
-						const snobCell = innerTable.querySelector('.building_snob');
-						console.log('[SnobMinter] Ячейка особняка .building_snob найдена:', !!snobCell);
+					if (containerParentTr) {
+						// Ищем следующую строку, которая содержит уровни зданий
+						let nextTr = containerParentTr.nextElementSibling;
+						let foundLevels = false;
+						let attempts = 0;
 						
-						if (snobCell) {
-							const levelText = snobCell.textContent.trim();
-							console.log('[SnobMinter] Текст уровня:', levelText);
+						while (nextTr && attempts < 3 && !foundLevels) {
+							console.log('[SnobMinter] Проверка строки на наличие уровней:', nextTr);
 							
-							const hiddenSpan = snobCell.querySelector('.hidden');
-							console.log('[SnobMinter] Найден .hidden:', !!hiddenSpan);
+							// Ищем таблицу с уровнями внутри строки
+							const levelTable = nextTr.querySelector('table.overview-container-item');
+							console.log('[SnobMinter] Таблица с уровнями найдена:', !!levelTable);
 							
-							if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
-								level = 0;
-								console.log('[SnobMinter] Уровень: 0 (скрыт)');
-							} else {
-								level = parseInt(levelText) || 0;
-								console.log('[SnobMinter] Уровень особняка:', level);
+							if (levelTable) {
+								// Проверяем наличие ячеек с уровнями
+								const firstLevelCell = levelTable.querySelector('.building_main, .building_snob, .building_storage');
+								console.log('[SnobMinter] Ячейка уровня найдена:', !!firstLevelCell);
+								
+								if (firstLevelCell) {
+									// Особняк
+									const snobCell = levelTable.querySelector('.building_snob');
+									console.log('[SnobMinter] Ячейка особняка .building_snob найдена:', !!snobCell);
+									
+									if (snobCell) {
+										const levelText = snobCell.textContent.trim();
+										console.log('[SnobMinter] Текст уровня особняка:', levelText);
+										
+										const hiddenSpan = snobCell.querySelector('.hidden');
+										if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
+											level = 0;
+											console.log('[SnobMinter] Уровень: 0 (скрыт)');
+										} else {
+											level = parseInt(levelText) || 0;
+											console.log('[SnobMinter] Уровень особняка:', level);
+										}
+									}
+									
+									// Склад
+									const storageCell = levelTable.querySelector('.building_storage');
+									console.log('[SnobMinter] Ячейка склада .building_storage найдена:', !!storageCell);
+									
+									if (storageCell) {
+										const storageText = storageCell.textContent.trim();
+										console.log('[SnobMinter] Текст склада:', storageText);
+										
+										const hiddenSpan = storageCell.querySelector('.hidden');
+										if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
+											warehouse = 0;
+										} else {
+											warehouse = parseInt(storageText) || 0;
+										}
+										console.log('[SnobMinter] Размер склада:', warehouse);
+									}
+									
+									foundLevels = true;
+									break;
+								}
 							}
+							
+							nextTr = nextTr.nextElementSibling;
+							attempts++;
 						}
 						
-						// Склад
-						const storageCell = innerTable.querySelector('.building_storage');
-						console.log('[SnobMinter] Ячейка склада .building_storage найдена:', !!storageCell);
-						
-						if (storageCell) {
-							const storageText = storageCell.textContent.trim();
-							console.log('[SnobMinter] Текст склада:', storageText);
-							
-							const hiddenSpan = storageCell.querySelector('.hidden');
-							if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
-								warehouse = 0;
-							} else {
-								warehouse = parseInt(storageText) || 0;
-							}
-							console.log('[SnobMinter] Размер склада:', warehouse);
+						if (!foundLevels) {
+							console.log('[SnobMinter] Таблица с уровнями НЕ найдена');
 						}
 					}
 					
-					// Очередь строительства - ищем в родительском элементе
-					// В мобильной версии очередь находится в отдельной строке после таблицы с уровнями
-					const parentRow = container.closest('tr');
-					console.log('[SnobMinter] Родительская строка найдена:', !!parentRow);
+					// Очередь строительства - ищем в следующих строках после уровней
+					let queueTr = containerParentTr ? containerParentTr.nextElementSibling : null;
+					let attemptsQueue = 0;
+					let foundQueue = false;
 					
-					if (parentRow) {
-						const parentTr = parentRow.parentElement;
-						console.log('[SnobMinter] Родительский элемент:', !!parentTr);
+					// Пропускаем строку с уровнями, ищем дальше
+					let queueSearchTr = queueTr;
+					while (queueSearchTr && attemptsQueue < 5 && !foundQueue) {
+						const orderUl = queueSearchTr.querySelector('ul.building_order');
+						console.log('[SnobMinter] Очередь строительства .building_order найдена:', !!orderUl);
 						
-						if (parentTr) {
-							// Ищем все следующие строки, чтобы найти очередь
-							let nextTr = parentTr.nextElementSibling;
-							let foundQueue = false;
-							let attempts = 0;
-							
-							while (nextTr && attempts < 5 && !foundQueue) {
-								console.log('[SnobMinter] Проверка строки:', nextTr);
-								const orderUl = nextTr.querySelector('ul.building_order');
-								console.log('[SnobMinter] Очередь строительства .building_order найдена:', !!orderUl);
-								
-								if (orderUl) {
-									const images = orderUl.querySelectorAll('img');
-									queueCount = images.length;
-									console.log('[SnobMinter] Количество элементов в очереди:', queueCount);
-									foundQueue = true;
-									break;
-								}
-								nextTr = nextTr.nextElementSibling;
-								attempts++;
-							}
-							
-							if (!foundQueue) {
-								console.log('[SnobMinter] Очередь строительства НЕ найдена');
-							}
+						if (orderUl) {
+							const images = orderUl.querySelectorAll('img');
+							queueCount = images.length;
+							console.log('[SnobMinter] Количество элементов в очереди:', queueCount);
+							foundQueue = true;
+							break;
 						}
+						queueSearchTr = queueSearchTr.nextElementSibling;
+						attemptsQueue++;
+					}
+					
+					if (!foundQueue) {
+						console.log('[SnobMinter] Очередь строительства НЕ найдена');
 					}
 					
 				} else {
@@ -487,7 +499,6 @@
 					villageId = idMatch[1];
 					console.log('[SnobMinter] ID деревни:', villageId);
 					
-					// Название и координаты
 					const quickeditSpan = tr.querySelector('.quickedit-vn');
 					console.log('[SnobMinter] .quickedit-vn найден:', !!quickeditSpan);
 					
@@ -513,8 +524,6 @@
 						}
 					}
 					
-					// Особняк
-					console.log('[SnobMinter] Поиск особняка по классу .b_snob');
 					const snobCell = tr.querySelector('.b_snob');
 					console.log('[SnobMinter] Ячейка особняка .b_snob найдена:', !!snobCell);
 					
@@ -523,8 +532,6 @@
 						console.log('[SnobMinter] Текст уровня:', levelText);
 						
 						const hiddenSpan = snobCell.querySelector('.hidden');
-						console.log('[SnobMinter] Найден .hidden:', !!hiddenSpan);
-						
 						if (hiddenSpan && parseInt(hiddenSpan.textContent.trim()) === 0) {
 							level = 0;
 							console.log('[SnobMinter] Уровень: 0 (скрыт)');
@@ -534,8 +541,6 @@
 						}
 					}
 					
-					// Склад
-					console.log('[SnobMinter] Поиск склада по классу .b_storage');
 					const storageCell = tr.querySelector('.b_storage');
 					console.log('[SnobMinter] Ячейка склада .b_storage найдена:', !!storageCell);
 					
@@ -552,8 +557,6 @@
 						console.log('[SnobMinter] Размер склада:', warehouse);
 					}
 					
-					// Очередь строительства
-					console.log('[SnobMinter] Поиск очереди строительства');
 					const orderUl = tr.querySelector('ul[id^="building_order_"]');
 					console.log('[SnobMinter] Очередь строительства найдена:', !!orderUl);
 					
@@ -564,7 +567,6 @@
 					}
 				}
 				
-				// Пропускаем деревни без особняка
 				console.log('[SnobMinter] Уровень особняка:', level);
 				if (level < 1) {
 					console.log('[SnobMinter] ❌ Деревня ПРОПУЩЕНА (нет особняка)');
@@ -592,7 +594,6 @@
 			
 			console.log('[SnobMinter] ===== ИТОГО НАЙДЕНО ДЕРЕВЕНЬ С ОСОБНЯКОМ:', this.villages.length, '=====');
 			
-			// Загружаем сохраненное состояние автозапуска
 			this.loadAutoStartState();
 		},
         
