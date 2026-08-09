@@ -23,12 +23,12 @@
         
         translations: {
             ru: {
-                title: "🏰 Авточеканка монет",
+                title: " Авточеканка монет",
                 loading: "Загрузка списка деревень...",
                 noVillages: "❌ Деревни с особняком не найдены",
                 villagesFound: "Найдено деревень с особняком: {count}",
-                selectAll: "✅ Выбрать все",
-                deselectAll: "❌ Снять все",
+                selectAll: " Выбрать все",
+                deselectAll: " Снять все",
                 startMinting: "▶️ Запустить чеканку",
                 stopMinting: "⏹️ Остановить чеканку",
                 stop: "⏹️",
@@ -52,7 +52,7 @@
                 alreadyCount: "⏳ Уже чеканили: {count}",
                 total: "📊 Всего: {count}",
                 close: "✕",
-                help: "❓ Помощь",
+                help: " Помощь",
                 helpTitle: "📖 Помощь по авточеканке",
                 mintingActive: "✅ Активна",
                 mintingInactive: "❌ Не активна",
