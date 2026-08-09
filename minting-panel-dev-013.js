@@ -1429,102 +1429,235 @@
         },
         
         createGUI: function() {
-            const contentValue = document.getElementById('content_value');
-            if (!contentValue) return;
-            
-            const existing = document.getElementById('tw-snob-minter');
-            if (existing) existing.remove();
-            
-            const div = document.createElement('div');
-            div.id = 'tw-snob-minter';
-            div.style.cssText = 'min-width: 100%; max-width: 100%; margin: 10px auto; padding: 10px; box-sizing: border-box; overflow-x: auto; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;';
-            
-            div.innerHTML = `
-                <div style="font-weight: bold; text-align: center; font-size: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                    <span>🏰 ${this.t('title')}</span>
-                    <span id="snob-last-update" style="font-size: 11px; color: #999; font-weight: normal;"></span>
-                    <div>
-                        <button id="snob-help-btn" class="btn" style="font-size: 14px;">❓ ${this.t('help')}</button>
-                    </div>
-                </div>
-                
-                <div id="snob-help-panel" style="display: none; margin-bottom: 15px; padding: 15px; background: white; border: 2px solid #6c757d; border-radius: 8px; position: relative;">
-                    <button id="snob-help-close" style="position: absolute; top: 5px; right: 10px; font-size: 20px; background: none; border: none; cursor: pointer; color: #dc3545;">✕</button>
-                    <h3 style="margin-top: 0; color: #6c757d;">📖 ${this.t('helpTitle')}</h3>
-                    <div style="font-size: 13px; line-height: 1.8; max-height: 400px; overflow-y: auto; padding: 5px;">
-                        ${this.t('helpText')}
-                    </div>
-                </div>
-                
-                <div id="snob-noble-info" style="margin-bottom: 15px;"></div>
-                
-                <div id="snob-results" style="display: none; margin-bottom: 15px;"></div>
-                
-                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                    <button id="snob-refresh-btn" class="btn">🔄 Обновить список</button>
-                    <button id="snob-select-all" class="btn">✅ ${this.t('selectAll')}</button>
-                    <button id="snob-deselect-all" class="btn">❌ ${this.t('deselectAll')}</button>
-                    <button id="snob-start-btn" class="btn btn-confirm-yes" disabled>▶️ ${this.t('startMinting')}</button>
-                    <button id="snob-stop-all-btn" class="btn btn-confirm-no" disabled>⏹️ ${this.t('stopAll')}</button>
-                    <span id="snob-counter" style="font-size: 12px; color: #666;"></span>
-                </div>
-                
-                <div id="snob-progress" style="display: none; margin-bottom: 15px; padding: 10px; background: #f0fff0; border: 1px solid #4CAF50; border-radius: 4px;">
-                    <div>🔄 ${this.t('progress')}: <span id="snob-progress-text"></span></div>
-                    <progress id="snob-progress-bar" value="0" max="100" style="width: 100%; margin-top: 5px;"></progress>
-                </div>
-                
-                <div style="max-height: 500px; overflow-y: auto; background: white; border-radius: 4px;">
-                    <table class="vis" style="width: 100%; font-size: 12px; min-width: 750px;">
-                        <thead>
-                            <tr style="background: #6c757d; color: black;">
-                                <th style="width: 40px; padding: 8px;">
-                                    <input type="checkbox" id="snob-header-checkbox">
-                                </th>
-                                <th style="padding: 8px;">🏠 ${this.t('village')}</th>
-                                <th style="padding: 8px;">📍 ${this.t('coordinates')}</th>
-                                <th style="padding: 8px; min-width: 100px;">📊 ${this.t('status')}</th>
-                                <th style="padding: 8px; min-width: 80px;">💰 ${this.t('coinsMinted')}</th>
-                                <th style="padding: 8px; min-width: 120px;">⏰ ${this.t('completion')}</th>
-                                <th style="padding: 8px; min-width: 80px;">🔄 ${this.t('autoStart')}</th>
-                                <th style="padding: 8px; min-width: 60px;">⚙️ ${this.t('stop')}</th>
-                            </tr>
-                        </thead>
-                        <tbody id="snob-tbody">
-                            <tr><td colspan="8" style="text-align: center; padding: 20px;">${this.t('loading')}</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            contentValue.insertBefore(div, contentValue.firstChild);
-            
-            document.getElementById('snob-refresh-btn')?.addEventListener('click', () => this.refreshVillages());
-            document.getElementById('snob-select-all')?.addEventListener('click', () => this.selectAll());
-            document.getElementById('snob-deselect-all')?.addEventListener('click', () => this.deselectAll());
-            document.getElementById('snob-start-btn')?.addEventListener('click', () => this.startMintingAll());
-            document.getElementById('snob-stop-all-btn')?.addEventListener('click', () => this.stopAllMinting());
-            document.getElementById('snob-help-btn')?.addEventListener('click', () => this.showHelp());
-            document.getElementById('snob-help-close')?.addEventListener('click', () => {
-                document.getElementById('snob-help-panel').style.display = 'none';
-            });
-            
-            document.getElementById('snob-header-checkbox')?.addEventListener('change', (e) => {
-                const checked = e.target.checked;
-                for (const v of this.villages) {
-                    if (!v.isMinting) {
-                        if (checked) {
-                            this.selectedVillages.add(v.id);
-                        } else {
-                            this.selectedVillages.delete(v.id);
-                        }
-                    }
-                }
-                this.updateUI();
-            });
-            
-            this.refreshVillages();
-        },
+			const contentValue = document.getElementById('content_value');
+			if (!contentValue) return;
+			
+			const existing = document.getElementById('tw-snob-minter');
+			if (existing) existing.remove();
+			
+			// Определяем, мобильное ли устройство
+			const isMobile = window.innerWidth < 768 || 
+							 /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+			
+			const div = document.createElement('div');
+			div.id = 'tw-snob-minter';
+			div.style.cssText = `
+				min-width: 100%; 
+				max-width: 100%; 
+				margin: 10px auto; 
+				padding: ${isMobile ? '8px' : '10px'}; 
+				box-sizing: border-box; 
+				overflow-x: auto; 
+				background: #f8f9fa; 
+				border-radius: 8px; 
+				border: 1px solid #dee2e6;
+				font-size: ${isMobile ? '12px' : '14px'};
+			`;
+			
+			// Добавляем стили для адаптивности
+			const styleEl = document.createElement('style');
+			styleEl.textContent = `
+				#tw-snob-minter {
+					width: 100%;
+					max-width: 100%;
+					overflow-x: auto;
+				}
+				#tw-snob-minter .btn {
+					font-size: ${isMobile ? '10px' : '12px'};
+					padding: ${isMobile ? '4px 8px' : '6px 12px'};
+					margin: 2px;
+					white-space: nowrap;
+				}
+				#tw-snob-minter .snob-action-btn {
+					padding: ${isMobile ? '2px 6px' : '2px 8px'};
+					font-size: ${isMobile ? '14px' : '12px'};
+				}
+				#tw-snob-minter table {
+					font-size: ${isMobile ? '10px' : '12px'};
+				}
+				#tw-snob-minter table td, 
+				#tw-snob-minter table th {
+					padding: ${isMobile ? '4px 3px' : '8px 6px'};
+				}
+				#tw-snob-minter .village-status {
+					font-size: ${isMobile ? '9px' : '11px'};
+				}
+				#tw-snob-minter input[type="checkbox"] {
+					width: ${isMobile ? '14px' : '16px'};
+					height: ${isMobile ? '14px' : '16px'};
+				}
+				#tw-snob-minter .btn-group {
+					display: flex;
+					flex-wrap: wrap;
+					gap: ${isMobile ? '4px' : '8px'};
+					justify-content: ${isMobile ? 'center' : 'flex-start'};
+				}
+				#tw-snob-minter .table-wrapper {
+					overflow-x: auto;
+					-webkit-overflow-scrolling: touch;
+				}
+				#tw-snob-minter .table-wrapper table {
+					min-width: ${isMobile ? '600px' : '700px'};
+				}
+				#tw-snob-minter .noble-info {
+					display: flex;
+					flex-wrap: wrap;
+					gap: ${isMobile ? '6px' : '10px'};
+					padding: ${isMobile ? '6px 8px' : '8px 12px'};
+					font-size: ${isMobile ? '10px' : '12px'};
+				}
+				#tw-snob-minter .noble-info span {
+					flex: ${isMobile ? '1 1 45%' : '0 1 auto'};
+				}
+				#tw-snob-minter .controls-row {
+					display: flex;
+					flex-wrap: wrap;
+					gap: ${isMobile ? '4px' : '8px'};
+					align-items: center;
+					justify-content: ${isMobile ? 'center' : 'flex-start'};
+				}
+				#tw-snob-minter .controls-row .btn {
+					flex: ${isMobile ? '1 1 auto' : '0 1 auto'};
+				}
+				#tw-snob-minter .header-row {
+					display: flex;
+					flex-wrap: wrap;
+					gap: ${isMobile ? '6px' : '10px'};
+					align-items: center;
+					justify-content: ${isMobile ? 'center' : 'space-between'};
+				}
+				#tw-snob-minter .header-row .title {
+					font-size: ${isMobile ? '16px' : '18px'};
+					text-align: ${isMobile ? 'center' : 'left'};
+				}
+				#tw-snob-minter .header-row .last-update {
+					font-size: ${isMobile ? '9px' : '11px'};
+				}
+				@media (max-width: 480px) {
+					#tw-snob-minter {
+						padding: 5px;
+						margin: 5px auto;
+					}
+					#tw-snob-minter .btn {
+						font-size: 9px;
+						padding: 3px 6px;
+					}
+					#tw-snob-minter table td, 
+					#tw-snob-minter table th {
+						padding: 3px 2px;
+						font-size: 9px;
+					}
+					#tw-snob-minter .village-name {
+						font-size: 9px;
+					}
+					#tw-snob-minter .noble-info span {
+						flex: 1 1 100%;
+					}
+					#tw-snob-minter .controls-row .btn {
+						flex: 1 1 auto;
+						font-size: 8px;
+						padding: 2px 4px;
+					}
+				}
+				@media (min-width: 769px) {
+					#tw-snob-minter {
+						padding: 15px;
+					}
+					#tw-snob-minter table td, 
+					#tw-snob-minter table th {
+						padding: 8px 10px;
+					}
+				}
+			`;
+			document.head.appendChild(styleEl);
+			
+			div.innerHTML = `
+				<div class="header-row">
+					<span class="title">🏰 ${this.t('title')}</span>
+					<span class="last-update" id="snob-last-update" style="font-size: ${isMobile ? '9px' : '11px'}; color: #999; font-weight: normal;"></span>
+					<div>
+						<button id="snob-help-btn" class="btn" style="font-size: ${isMobile ? '12px' : '14px'};">❓ ${this.t('help')}</button>
+					</div>
+				</div>
+				
+				<div id="snob-help-panel" style="display: none; margin-bottom: 15px; padding: 15px; background: white; border: 2px solid #6c757d; border-radius: 8px; position: relative;">
+					<button id="snob-help-close" style="position: absolute; top: 5px; right: 10px; font-size: 20px; background: none; border: none; cursor: pointer; color: #dc3545;">✕</button>
+					<h3 style="margin-top: 0; color: #6c757d; font-size: ${isMobile ? '14px' : '16px'};">📖 ${this.t('helpTitle')}</h3>
+					<div style="font-size: ${isMobile ? '11px' : '13px'}; line-height: 1.8; max-height: 400px; overflow-y: auto; padding: 5px;">
+						${this.t('helpText')}
+					</div>
+				</div>
+				
+				<div id="snob-noble-info" style="margin-bottom: ${isMobile ? '8px' : '15px'};"></div>
+				
+				<div id="snob-results" style="display: none; margin-bottom: ${isMobile ? '8px' : '15px'};"></div>
+				
+				<div class="controls-row">
+					<button id="snob-refresh-btn" class="btn">🔄 ${this.t('refresh')}</button>
+					<button id="snob-select-all" class="btn">✅ ${this.t('selectAll')}</button>
+					<button id="snob-deselect-all" class="btn">❌ ${this.t('deselectAll')}</button>
+					<button id="snob-start-btn" class="btn btn-confirm-yes" disabled>▶️ ${this.t('startMinting')}</button>
+					<button id="snob-stop-all-btn" class="btn btn-confirm-no" disabled>⏹️ ${this.t('stopAll')}</button>
+					<span id="snob-counter" style="font-size: ${isMobile ? '9px' : '12px'}; color: #666;"></span>
+				</div>
+				
+				<div id="snob-progress" style="display: none; margin-bottom: ${isMobile ? '8px' : '15px'}; padding: 10px; background: #f0fff0; border: 1px solid #4CAF50; border-radius: 4px;">
+					<div>🔄 ${this.t('progress')}: <span id="snob-progress-text"></span></div>
+					<progress id="snob-progress-bar" value="0" max="100" style="width: 100%; margin-top: 5px; height: ${isMobile ? '15px' : '20px'};"></progress>
+				</div>
+				
+				<div class="table-wrapper">
+					<table class="vis" style="width: 100%; font-size: ${isMobile ? '10px' : '12px'}; min-width: ${isMobile ? '550px' : '700px'}; border-collapse: collapse;">
+						<thead>
+							<tr style="background: #6c757d; color: white;">
+								<th style="width: ${isMobile ? '30px' : '40px'}; padding: ${isMobile ? '4px' : '8px'};">
+									<input type="checkbox" id="snob-header-checkbox" style="width: ${isMobile ? '12px' : '14px'}; height: ${isMobile ? '12px' : '14px'};">
+								</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'};">🏠 ${this.t('village')}</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'};">📍 ${this.t('coordinates')}</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '70px' : '100px'};">📊 ${this.t('status')}</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '50px' : '80px'};">💰 ${this.t('coinsMinted')}</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '70px' : '120px'};">⏰ ${this.t('completion')}</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '50px' : '80px'};">🔄 ${this.t('autoStart')}</th>
+								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '40px' : '60px'};">⚙️ ${this.t('stop')}</th>
+							</tr>
+						</thead>
+						<tbody id="snob-tbody">
+							<tr><td colspan="8" style="text-align: center; padding: 20px;">${this.t('loading')}</td></tr>
+						</tbody>
+					</table>
+				</div>
+			`;
+			
+			contentValue.insertBefore(div, contentValue.firstChild);
+			
+			// Обработчики событий (оставляем как было)
+			document.getElementById('snob-refresh-btn')?.addEventListener('click', () => this.refreshVillages());
+			document.getElementById('snob-select-all')?.addEventListener('click', () => this.selectAll());
+			document.getElementById('snob-deselect-all')?.addEventListener('click', () => this.deselectAll());
+			document.getElementById('snob-start-btn')?.addEventListener('click', () => this.startMintingAll());
+			document.getElementById('snob-stop-all-btn')?.addEventListener('click', () => this.stopAllMinting());
+			document.getElementById('snob-help-btn')?.addEventListener('click', () => this.showHelp());
+			document.getElementById('snob-help-close')?.addEventListener('click', () => {
+				document.getElementById('snob-help-panel').style.display = 'none';
+			});
+			
+			document.getElementById('snob-header-checkbox')?.addEventListener('change', (e) => {
+				const checked = e.target.checked;
+				for (const v of this.villages) {
+					if (!v.isMinting) {
+						if (checked) {
+							this.selectedVillages.add(v.id);
+						} else {
+							this.selectedVillages.delete(v.id);
+						}
+					}
+				}
+				this.updateUI();
+			});
+			
+			this.refreshVillages();
+		},
         
         refreshVillages: async function() {
             const tbody = document.getElementById('snob-tbody');
