@@ -623,54 +623,109 @@
         },
         
         parseMintingStatus: function(html) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            
-            const statusCell = tempDiv.querySelector('.auto-minting-cell');
-            if (!statusCell) {
-                return { active: false, coins: 0, completion: null, duration: null };
-            }
-            
-            const result = {
-                active: false,
-                coins: 0,
-                completion: null,
-                duration: null
-            };
-            
-            const cancelForm = statusCell.querySelector('form[action*="cancel_auto_minting_session"]');
-            if (cancelForm) {
-                result.active = true;
-                
-                const textNodes = statusCell.querySelectorAll('div');
-                for (const node of textNodes) {
-                    const text = node.textContent.trim();
-                    const coinMatch = text.match(/(\d+)\s*золотых монет/);
-                    if (coinMatch) {
-                        result.coins = parseInt(coinMatch[1]) || 0;
-                    }
-                    const completionMatch = text.match(/Завершение:\s*(.+)/);
-                    if (completionMatch) {
-                        result.completion = completionMatch[1].trim();
-                    }
-                }
-            } else {
-                const activateForm = statusCell.querySelector('form[action*="start_auto_minting_session"]');
-                if (activateForm) {
-                    result.active = false;
-                    
-                    const durationSpan = statusCell.querySelector('span');
-                    if (durationSpan) {
-                        const durationText = durationSpan.textContent.trim();
-                        if (durationText.includes('Длительность')) {
-                            result.duration = durationText.replace('Длительность', '').trim();
-                        }
-                    }
-                }
-            }
-            
-            return result;
-        },
+			const tempDiv = document.createElement('div');
+			tempDiv.innerHTML = html;
+			
+			const result = {
+				active: false,
+				coins: 0,
+				completion: null,
+				duration: null
+			};
+			
+			// Пробуем найти статус в мобильной версии
+			let statusContainer = tempDiv.querySelector('.mobileKeyValue');
+			
+			if (statusContainer) {
+				console.log('[SnobMinter] Найден мобильный контейнер статуса');
+				
+				// Проверяем наличие класса "running" (активна)
+				const statusIcon = statusContainer.querySelector('.auto-minting-status');
+				if (statusIcon && statusIcon.classList.contains('running')) {
+					result.active = true;
+					console.log('[SnobMinter] Статус: Активна');
+				} else {
+					console.log('[SnobMinter] Статус: Не активна');
+				}
+				
+				// Ищем количество монет
+				const coinTexts = statusContainer.querySelectorAll('div span');
+				for (const span of coinTexts) {
+					const text = span.textContent.trim();
+					if (text.includes('Собрано на данный момент')) {
+						// Ищем следующий span с числом
+						const nextSpan = span.nextElementSibling;
+						if (nextSpan) {
+							const match = nextSpan.textContent.match(/(\d+)/);
+							if (match) {
+								result.coins = parseInt(match[1]) || 0;
+								console.log('[SnobMinter] Монет:', result.coins);
+							}
+						}
+					} else if (text.includes('Завершение')) {
+						const nextSpan = span.nextElementSibling;
+						if (nextSpan) {
+							result.completion = nextSpan.textContent.trim();
+							console.log('[SnobMinter] Завершение:', result.completion);
+						}
+					}
+				}
+				
+				// Проверяем наличие кнопки "Отменить" (активна) или "Активировать" (не активна)
+				const cancelForm = statusContainer.querySelector('form[action*="cancel_auto_minting_session"]');
+				const activateForm = statusContainer.querySelector('form[action*="start_auto_minting_session"]');
+				
+				if (cancelForm) {
+					result.active = true;
+					console.log('[SnobMinter] Найдена кнопка Отменить - активна');
+				} else if (activateForm) {
+					result.active = false;
+					console.log('[SnobMinter] Найдена кнопка Активировать - не активна');
+				}
+				
+				return result;
+			}
+			
+			// Если мобильная версия не найдена, пробуем десктопную
+			const statusCell = tempDiv.querySelector('.auto-minting-cell');
+			if (statusCell) {
+				console.log('[SnobMinter] Найден десктопный контейнер статуса');
+				
+				const cancelForm = statusCell.querySelector('form[action*="cancel_auto_minting_session"]');
+				if (cancelForm) {
+					result.active = true;
+					
+					const textNodes = statusCell.querySelectorAll('div');
+					for (const node of textNodes) {
+						const text = node.textContent.trim();
+						const coinMatch = text.match(/(\d+)\s*золотых монет/);
+						if (coinMatch) {
+							result.coins = parseInt(coinMatch[1]) || 0;
+						}
+						const completionMatch = text.match(/Завершение:\s*(.+)/);
+						if (completionMatch) {
+							result.completion = completionMatch[1].trim();
+						}
+					}
+				} else {
+					const activateForm = statusCell.querySelector('form[action*="start_auto_minting_session"]');
+					if (activateForm) {
+						result.active = false;
+						
+						const durationSpan = statusCell.querySelector('span');
+						if (durationSpan) {
+							const durationText = durationSpan.textContent.trim();
+							if (durationText.includes('Длительность')) {
+								result.duration = durationText.replace('Длительность', '').trim();
+							}
+						}
+					}
+				}
+			}
+			
+			console.log('[SnobMinter] Статус:', result);
+			return result;
+		},
         
         // Загрузка статусов для всех деревень
         loadAllMintingStatuses: async function(showProgress = false) {
