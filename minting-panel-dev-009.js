@@ -633,97 +633,103 @@
 				duration: null
 			};
 			
-			// Пробуем найти статус в мобильной версии
-			let statusContainer = tempDiv.querySelector('.mobileKeyValue');
+			// Ищем все mobileKeyValue
+			const containers = tempDiv.querySelectorAll('.mobileKeyValue');
+			console.log('[SnobMinter] Найдено mobileKeyValue контейнеров:', containers.length);
 			
-			if (statusContainer) {
-				console.log('[SnobMinter] Найден мобильный контейнер статуса');
-				
-				// Проверяем наличие класса "running" (активна)
-				const statusIcon = statusContainer.querySelector('.auto-minting-status');
-				if (statusIcon && statusIcon.classList.contains('running')) {
-					result.active = true;
-					console.log('[SnobMinter] Статус: Активна');
-				} else {
-					console.log('[SnobMinter] Статус: Не активна');
-				}
-				
-				// Ищем количество монет
-				const coinTexts = statusContainer.querySelectorAll('div span');
-				for (const span of coinTexts) {
-					const text = span.textContent.trim();
-					if (text.includes('Собрано на данный момент')) {
-						// Ищем следующий span с числом
-						const nextSpan = span.nextElementSibling;
-						if (nextSpan) {
-							const match = nextSpan.textContent.match(/(\d+)/);
-							if (match) {
-								result.coins = parseInt(match[1]) || 0;
-								console.log('[SnobMinter] Монет:', result.coins);
+			for (const container of containers) {
+				// Проверяем, что это контейнер автоматической чеканки
+				const header = container.querySelector('h3');
+				if (header && header.textContent.includes('Автоматическая чеканка')) {
+					console.log('[SnobMinter] Найден контейнер автоматической чеканки');
+					
+					// Проверяем наличие класса "running" (активна)
+					const statusIcon = container.querySelector('.auto-minting-status');
+					if (statusIcon && statusIcon.classList.contains('running')) {
+						result.active = true;
+						console.log('[SnobMinter] Статус: Активна (по иконке)');
+					} else {
+						console.log('[SnobMinter] Статус: Не активна (по иконке)');
+					}
+					
+					// Ищем количество монет
+					const divs = container.querySelectorAll('div');
+					for (const div of divs) {
+						const spans = div.querySelectorAll('span');
+						if (spans.length >= 2) {
+							const label = spans[0].textContent.trim();
+							const value = spans[1].textContent.trim();
+							
+							if (label.includes('Собрано на данный момент')) {
+								const match = value.match(/(\d+)/);
+								if (match) {
+									result.coins = parseInt(match[1]) || 0;
+									console.log('[SnobMinter] Монет собрано:', result.coins);
+								}
+							} else if (label.includes('Завершение')) {
+								result.completion = value;
+								console.log('[SnobMinter] Завершение:', result.completion);
 							}
 						}
-					} else if (text.includes('Завершение')) {
-						const nextSpan = span.nextElementSibling;
-						if (nextSpan) {
-							result.completion = nextSpan.textContent.trim();
-							console.log('[SnobMinter] Завершение:', result.completion);
-						}
 					}
+					
+					// Проверяем наличие кнопки "Отменить" (активна)
+					const cancelForm = container.querySelector('form[action*="cancel_auto_minting_session"]');
+					const activateForm = container.querySelector('form[action*="start_auto_minting_session"]');
+					
+					if (cancelForm) {
+						result.active = true;
+						console.log('[SnobMinter] Найдена кнопка Отменить - активна');
+					} else if (activateForm) {
+						result.active = false;
+						console.log('[SnobMinter] Найдена кнопка Активировать - не активна');
+					}
+					
+					// Если нашли нужный контейнер - выходим из цикла
+					break;
 				}
-				
-				// Проверяем наличие кнопки "Отменить" (активна) или "Активировать" (не активна)
-				const cancelForm = statusContainer.querySelector('form[action*="cancel_auto_minting_session"]');
-				const activateForm = statusContainer.querySelector('form[action*="start_auto_minting_session"]');
-				
-				if (cancelForm) {
-					result.active = true;
-					console.log('[SnobMinter] Найдена кнопка Отменить - активна');
-				} else if (activateForm) {
-					result.active = false;
-					console.log('[SnobMinter] Найдена кнопка Активировать - не активна');
-				}
-				
-				return result;
 			}
 			
 			// Если мобильная версия не найдена, пробуем десктопную
-			const statusCell = tempDiv.querySelector('.auto-minting-cell');
-			if (statusCell) {
-				console.log('[SnobMinter] Найден десктопный контейнер статуса');
-				
-				const cancelForm = statusCell.querySelector('form[action*="cancel_auto_minting_session"]');
-				if (cancelForm) {
-					result.active = true;
+			if (!result.active && containers.length === 0) {
+				const statusCell = tempDiv.querySelector('.auto-minting-cell');
+				if (statusCell) {
+					console.log('[SnobMinter] Найден десктопный контейнер статуса');
 					
-					const textNodes = statusCell.querySelectorAll('div');
-					for (const node of textNodes) {
-						const text = node.textContent.trim();
-						const coinMatch = text.match(/(\d+)\s*золотых монет/);
-						if (coinMatch) {
-							result.coins = parseInt(coinMatch[1]) || 0;
-						}
-						const completionMatch = text.match(/Завершение:\s*(.+)/);
-						if (completionMatch) {
-							result.completion = completionMatch[1].trim();
-						}
-					}
-				} else {
-					const activateForm = statusCell.querySelector('form[action*="start_auto_minting_session"]');
-					if (activateForm) {
-						result.active = false;
+					const cancelForm = statusCell.querySelector('form[action*="cancel_auto_minting_session"]');
+					if (cancelForm) {
+						result.active = true;
 						
-						const durationSpan = statusCell.querySelector('span');
-						if (durationSpan) {
-							const durationText = durationSpan.textContent.trim();
-							if (durationText.includes('Длительность')) {
-								result.duration = durationText.replace('Длительность', '').trim();
+						const textNodes = statusCell.querySelectorAll('div');
+						for (const node of textNodes) {
+							const text = node.textContent.trim();
+							const coinMatch = text.match(/(\d+)\s*золотых монет/);
+							if (coinMatch) {
+								result.coins = parseInt(coinMatch[1]) || 0;
+							}
+							const completionMatch = text.match(/Завершение:\s*(.+)/);
+							if (completionMatch) {
+								result.completion = completionMatch[1].trim();
+							}
+						}
+					} else {
+						const activateForm = statusCell.querySelector('form[action*="start_auto_minting_session"]');
+						if (activateForm) {
+							result.active = false;
+							
+							const durationSpan = statusCell.querySelector('span');
+							if (durationSpan) {
+								const durationText = durationSpan.textContent.trim();
+								if (durationText.includes('Длительность')) {
+									result.duration = durationText.replace('Длительность', '').trim();
+								}
 							}
 						}
 					}
 				}
 			}
 			
-			console.log('[SnobMinter] Статус:', result);
+			console.log('[SnobMinter] Итоговый статус:', result);
 			return result;
 		},
         
