@@ -287,30 +287,51 @@
 			// Пробуем найти таблицу зданий (ПК версия)
 			let table = tempDiv.querySelector('#buildings_table');
 			let rows = [];
+			let isMobile = false;
 			
 			if (table) {
-				// ПК версия - ищем строки с id="v_XXX"
-				rows = table.querySelectorAll('tr[id^="v_"]');
+				// Проверяем, есть ли внутри таблица с классом overview-container-item (мобильная версия)
+				const innerContainers = table.querySelectorAll('table.overview-container-item');
+				if (innerContainers.length > 0) {
+					// Мобильная версия - ищем контейнеры деревень
+					for (const container of innerContainers) {
+						const containerId = container.getAttribute('id');
+						if (!containerId) continue;
+						// Проверяем, что это контейнер деревни (имеет ID вида "426")
+						if (/^\d+$/.test(containerId)) {
+							rows.push({
+								container: container,
+								id: containerId,
+								isContainer: true
+							});
+						}
+					}
+					isMobile = true;
+				} else {
+					// ПК версия - ищем строки с id="v_XXX"
+					const trs = table.querySelectorAll('tr[id^="v_"]');
+					for (const tr of trs) {
+						rows.push(tr);
+					}
+				}
 			} else {
-				// Мобильная/новая версия - ищем контейнеры с классом overview-container-item
+				// Альтернативный поиск для мобильной версии (если таблица не найдена)
 				const containers = tempDiv.querySelectorAll('table.overview-container-item');
 				for (const container of containers) {
 					const containerId = container.getAttribute('id');
-					if (!containerId) continue;
-					
-					// Создаем объект для единообразной обработки
-					const row = {
-						container: container,
-						id: containerId.startsWith('v_') ? containerId.replace('v_', '') : containerId,
-						isContainer: true
-					};
-					rows.push(row);
+					if (containerId && /^\d+$/.test(containerId)) {
+						rows.push({
+							container: container,
+							id: containerId,
+							isContainer: true
+						});
+					}
 				}
+				isMobile = true;
 			}
 			
 			for (const row of rows) {
 				let villageId, name = '', coord = '', level = 0, warehouse = 0, queueCount = 0;
-				let snobCell = null;
 				
 				if (row.isContainer) {
 					// Мобильная версия
@@ -335,8 +356,8 @@
 						}
 					}
 					
-					// Особняк
-					snobCell = container.querySelector('.building_snob');
+					// Особняк - ищем ячейку с классом building_snob village_XXX building_level
+					const snobCell = container.querySelector(`.building_snob.village_${villageId}.building_level`);
 					if (snobCell) {
 						const levelText = snobCell.textContent.trim();
 						const hiddenSpan = snobCell.querySelector('.hidden');
@@ -348,7 +369,7 @@
 					}
 					
 					// Склад
-					const storageCell = container.querySelector('.building_storage');
+					const storageCell = container.querySelector(`.building_storage.village_${villageId}.building_level`);
 					if (storageCell) {
 						const storageText = storageCell.textContent.trim();
 						const hiddenSpan = storageCell.querySelector('.hidden');
@@ -359,11 +380,22 @@
 						}
 					}
 					
-					// Очередь строительства
-					const orderUl = container.querySelector('.building_order');
-					if (orderUl) {
-						const images = orderUl.querySelectorAll('img');
-						queueCount = images.length;
+					// Очередь строительства - ищем вне контейнера, в родительском элементе
+					// В мобильной версии очередь находится в отдельной строке после таблицы
+					const parentRow = container.closest('tr');
+					if (parentRow) {
+						const parentTr = parentRow.parentElement;
+						if (parentTr) {
+							// Ищем следующий tr после текущего
+							const nextTr = parentTr.nextElementSibling;
+							if (nextTr) {
+								const orderUl = nextTr.querySelector('ul.building_order');
+								if (orderUl) {
+									const images = orderUl.querySelectorAll('img');
+									queueCount = images.length;
+								}
+							}
+						}
 					}
 					
 				} else {
@@ -391,8 +423,8 @@
 						}
 					}
 					
-					// Особняк (ищем ячейку с классом b_snob)
-					snobCell = tr.querySelector('.b_snob');
+					// Особняк
+					const snobCell = tr.querySelector('.b_snob');
 					if (snobCell) {
 						const levelText = snobCell.textContent.trim();
 						const hiddenSpan = snobCell.querySelector('.hidden');
@@ -403,7 +435,7 @@
 						}
 					}
 					
-					// Склад (ищем ячейку с классом b_storage)
+					// Склад
 					const storageCell = tr.querySelector('.b_storage');
 					if (storageCell) {
 						const storageText = storageCell.textContent.trim();
