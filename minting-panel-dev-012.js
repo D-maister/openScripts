@@ -818,12 +818,12 @@
 				let mintStatusText = v.isMinting ? '✅ Активна' : '❌ Не активна';
 				let mintStatusColor = v.isMinting ? '#28a745' : '#dc3545';
 				
-				let coinsText = '0';
+				let coinsText = '-';
 				let completionText = '—';
 				
 				if (v.mintingStatus) {
 					if (v.mintingStatus.active) {
-						coinsText = v.mintingStatus.coins || '0';
+						coinsText = v.mintingStatus.coins || '-';
 						completionText = v.mintingStatus.completion || '—';
 					} else if (v.mintingStatus.duration) {
 						completionText = v.mintingStatus.duration;
