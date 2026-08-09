@@ -794,7 +794,7 @@
             
             console.log(`[SnobMinter] Statuses updated for ${total} villages`);
             
-            await this.refreshTable();
+            await this.refreshCards();
         },
         
         updateLastUpdateTime: function() {
@@ -806,9 +806,14 @@
         },
         
         // Обновление таблицы с данными
-		refreshTable: async function() {
-			const tbody = document.getElementById('snob-tbody');
-			if (!tbody) return;
+		refreshCards: function() {
+			const container = document.getElementById('snob-cards-container');
+			if (!container) return;
+			
+			if (this.villages.length === 0) {
+				container.innerHTML = `<div style="text-align: center; padding: 20px; color: #6c757d;">${this.t('noVillages')}</div>`;
+				return;
+			}
 			
 			let html = '';
 			for (const v of this.villages) {
@@ -817,13 +822,14 @@
 				
 				let mintStatusText = v.isMinting ? '✅ Активна' : '❌ Не активна';
 				let mintStatusColor = v.isMinting ? '#28a745' : '#dc3545';
+				let cardClass = v.isMinting ? 'village-card active' : 'village-card';
 				
-				let coinsText = '-';
+				let coinsText = '0';
 				let completionText = '—';
 				
 				if (v.mintingStatus) {
 					if (v.mintingStatus.active) {
-						coinsText = v.mintingStatus.coins || '-';
+						coinsText = v.mintingStatus.coins || '0';
 						completionText = v.mintingStatus.completion || '—';
 					} else if (v.mintingStatus.duration) {
 						completionText = v.mintingStatus.duration;
@@ -832,55 +838,41 @@
 				
 				const actionBtnText = v.isMinting ? '⏹️' : '▶️';
 				const actionBtnClass = v.isMinting ? 'btn-confirm-no' : 'btn-confirm-yes';
-				// Кнопка активна только если:
-				// 1. Не выполняется никакая операция (this.isRunning === false)
-				// 2. Для STOP - если чеканка активна
-				// 3. Для START - если чеканка не активна (всегда активна, если не выполняется операция)
 				const actionBtnDisabled = this.isRunning ? true : false;
 				
 				html += `
-					<tr data-id="${v.id}" style="${v.isMinting ? 'background: #fff3cd;' : ''}">
-						<td style="padding: 8px; text-align: center;">
+					<div class="${cardClass}" data-id="${v.id}">
+						<div class="card-checkbox">
 							<input type="checkbox" data-id="${v.id}" ${isChecked ? 'checked' : ''} ${isDisabled ? 'disabled' : ''}>
-						</td>
-						<td style="padding: 8px;">
-							${v.name}
-						</td>
-						<td style="padding: 8px; text-align: center;">
-							${v.coord}
-						</td>
-						<td style="padding: 8px; text-align: center;">
-							<span style="color: ${mintStatusColor}; font-weight: bold;">${mintStatusText}</span>
-						</td>
-						<td style="padding: 8px; text-align: center; font-weight: bold;">
-							${coinsText}
-						</td>
-						<td style="padding: 8px; text-align: center; font-size: 11px;">
-							${completionText}
-						</td>
-						<td style="padding: 8px; text-align: center;">
+						</div>
+						<div class="card-name">${v.name}</div>
+						<div class="card-coord">${v.coord}</div>
+						<div class="card-status" style="color: ${mintStatusColor};">${mintStatusText}</div>
+						<div class="card-coins">${coinsText}</div>
+						<div class="card-completion">${completionText}</div>
+						<div class="card-auto">
 							<input type="checkbox" class="snob-auto-start" data-id="${v.id}" ${v.autoStart ? 'checked' : ''} ${this.isRunning ? 'disabled' : ''}>
-						</td>
-						<td style="padding: 8px; text-align: center;">
-							<button class="snob-action-btn ${actionBtnClass}" data-id="${v.id}" data-action="${v.isMinting ? 'stop' : 'start'}" ${actionBtnDisabled ? 'disabled' : ''} style="padding: 2px 8px; font-size: 12px; ${actionBtnDisabled ? 'opacity: 0.5;' : ''}">
+						</div>
+						<div class="card-action">
+							<button class="snob-action-btn ${actionBtnClass}" data-id="${v.id}" data-action="${v.isMinting ? 'stop' : 'start'}" ${actionBtnDisabled ? 'disabled' : ''}>
 								${actionBtnText}
 							</button>
-						</td>
-					</tr>
+						</div>
+					</div>
 				`;
 			}
 			
-			tbody.innerHTML = html;
+			container.innerHTML = html;
 			
 			// Перепривязываем обработчики
-			tbody.querySelectorAll('input[type="checkbox"]:not(.snob-auto-start)').forEach(cb => {
+			container.querySelectorAll('input[type="checkbox"]:not(.snob-auto-start)').forEach(cb => {
 				cb.addEventListener('change', (e) => {
 					const id = e.target.getAttribute('data-id');
 					this.toggleVillage(id);
 				});
 			});
 			
-			tbody.querySelectorAll('.snob-auto-start').forEach(cb => {
+			container.querySelectorAll('.snob-auto-start').forEach(cb => {
 				cb.addEventListener('change', (e) => {
 					const id = e.target.getAttribute('data-id');
 					const village = this.villages.find(v => v.id == id);
@@ -892,7 +884,7 @@
 				});
 			});
 			
-			tbody.querySelectorAll('.snob-action-btn').forEach(btn => {
+			container.querySelectorAll('.snob-action-btn').forEach(btn => {
 				btn.addEventListener('click', async (e) => {
 					const id = e.target.getAttribute('data-id');
 					const action = e.target.getAttribute('data-action');
@@ -1435,79 +1427,37 @@
 			const existing = document.getElementById('tw-snob-minter');
 			if (existing) existing.remove();
 			
-			// Определяем, мобильное ли устройство
+			// Определяем мобильное устройство
 			const isMobile = window.innerWidth < 768 || 
 							 /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 			
 			const div = document.createElement('div');
 			div.id = 'tw-snob-minter';
 			div.style.cssText = `
-				min-width: 100%; 
-				max-width: 100%; 
-				margin: 10px auto; 
-				padding: ${isMobile ? '8px' : '10px'}; 
-				box-sizing: border-box; 
-				overflow-x: auto; 
-				background: #f8f9fa; 
-				border-radius: 8px; 
+				width: 100%;
+				max-width: 100%;
+				margin: 8px auto;
+				padding: ${isMobile ? '6px' : '15px'};
+				box-sizing: border-box;
+				background: #f8f9fa;
+				border-radius: 8px;
 				border: 1px solid #dee2e6;
 				font-size: ${isMobile ? '12px' : '14px'};
+				overflow-x: hidden;
 			`;
 			
-			// Добавляем стили для адаптивности
+			// Стили для адаптивности
 			const styleEl = document.createElement('style');
 			styleEl.textContent = `
-				#tw-snob-minter {
-					width: 100%;
-					max-width: 100%;
-					overflow-x: auto;
+				#tw-snob-minter * {
+					box-sizing: border-box;
 				}
 				#tw-snob-minter .btn {
 					font-size: ${isMobile ? '10px' : '12px'};
 					padding: ${isMobile ? '4px 8px' : '6px 12px'};
 					margin: 2px;
 					white-space: nowrap;
-				}
-				#tw-snob-minter .snob-action-btn {
-					padding: ${isMobile ? '2px 6px' : '2px 8px'};
-					font-size: ${isMobile ? '14px' : '12px'};
-				}
-				#tw-snob-minter table {
-					font-size: ${isMobile ? '10px' : '12px'};
-				}
-				#tw-snob-minter table td, 
-				#tw-snob-minter table th {
-					padding: ${isMobile ? '4px 3px' : '8px 6px'};
-				}
-				#tw-snob-minter .village-status {
-					font-size: ${isMobile ? '9px' : '11px'};
-				}
-				#tw-snob-minter input[type="checkbox"] {
-					width: ${isMobile ? '14px' : '16px'};
-					height: ${isMobile ? '14px' : '16px'};
-				}
-				#tw-snob-minter .btn-group {
-					display: flex;
-					flex-wrap: wrap;
-					gap: ${isMobile ? '4px' : '8px'};
-					justify-content: ${isMobile ? 'center' : 'flex-start'};
-				}
-				#tw-snob-minter .table-wrapper {
-					overflow-x: auto;
-					-webkit-overflow-scrolling: touch;
-				}
-				#tw-snob-minter .table-wrapper table {
-					min-width: ${isMobile ? '600px' : '700px'};
-				}
-				#tw-snob-minter .noble-info {
-					display: flex;
-					flex-wrap: wrap;
-					gap: ${isMobile ? '6px' : '10px'};
-					padding: ${isMobile ? '6px 8px' : '8px 12px'};
-					font-size: ${isMobile ? '10px' : '12px'};
-				}
-				#tw-snob-minter .noble-info span {
-					flex: ${isMobile ? '1 1 45%' : '0 1 auto'};
+					display: inline-block;
 				}
 				#tw-snob-minter .controls-row {
 					display: flex;
@@ -1515,57 +1465,212 @@
 					gap: ${isMobile ? '4px' : '8px'};
 					align-items: center;
 					justify-content: ${isMobile ? 'center' : 'flex-start'};
+					margin-bottom: ${isMobile ? '8px' : '15px'};
 				}
 				#tw-snob-minter .controls-row .btn {
 					flex: ${isMobile ? '1 1 auto' : '0 1 auto'};
+					min-width: ${isMobile ? '60px' : 'auto'};
 				}
 				#tw-snob-minter .header-row {
 					display: flex;
 					flex-wrap: wrap;
-					gap: ${isMobile ? '6px' : '10px'};
+					gap: ${isMobile ? '5px' : '10px'};
 					align-items: center;
 					justify-content: ${isMobile ? 'center' : 'space-between'};
+					margin-bottom: ${isMobile ? '8px' : '15px'};
 				}
 				#tw-snob-minter .header-row .title {
 					font-size: ${isMobile ? '16px' : '18px'};
 					text-align: ${isMobile ? 'center' : 'left'};
+					width: ${isMobile ? '100%' : 'auto'};
 				}
 				#tw-snob-minter .header-row .last-update {
 					font-size: ${isMobile ? '9px' : '11px'};
+					color: #999;
+					font-weight: normal;
+					text-align: center;
+					width: ${isMobile ? '100%' : 'auto'};
+				}
+				/* Карточки для мобильной версии */
+				#tw-snob-minter .village-card {
+					background: white;
+					border: 1px solid #e0e0e0;
+					border-radius: 8px;
+					margin-bottom: 8px;
+					padding: 10px;
+					display: flex;
+					flex-wrap: wrap;
+					align-items: center;
+					gap: 6px;
+					transition: all 0.2s;
+				}
+				#tw-snob-minter .village-card.active {
+					background: #fff3cd;
+					border-color: #ffc107;
+				}
+				#tw-snob-minter .village-card .card-checkbox {
+					flex: 0 0 24px;
+				}
+				#tw-snob-minter .village-card .card-name {
+					flex: 2 1 120px;
+					font-weight: bold;
+					font-size: ${isMobile ? '11px' : '13px'};
+					word-break: break-word;
+				}
+				#tw-snob-minter .village-card .card-coord {
+					flex: 0 0 70px;
+					font-size: ${isMobile ? '9px' : '11px'};
+					color: #666;
+				}
+				#tw-snob-minter .village-card .card-status {
+					flex: 0 0 80px;
+					font-size: ${isMobile ? '9px' : '11px'};
+					text-align: center;
+					font-weight: bold;
+				}
+				#tw-snob-minter .village-card .card-coins {
+					flex: 0 0 40px;
+					text-align: center;
+					font-weight: bold;
+					font-size: ${isMobile ? '11px' : '13px'};
+				}
+				#tw-snob-minter .village-card .card-completion {
+					flex: 1 1 80px;
+					font-size: ${isMobile ? '8px' : '10px'};
+					color: #666;
+					text-align: center;
+				}
+				#tw-snob-minter .village-card .card-auto {
+					flex: 0 0 30px;
+					text-align: center;
+				}
+				#tw-snob-minter .village-card .card-action {
+					flex: 0 0 35px;
+					text-align: center;
+				}
+				#tw-snob-minter .village-card .card-action .snob-action-btn {
+					padding: 4px 8px;
+					font-size: ${isMobile ? '14px' : '12px'};
+					border: none;
+					border-radius: 4px;
+					cursor: pointer;
+					background: #6c757d;
+					color: white;
+					min-width: 30px;
+				}
+				#tw-snob-minter .village-card .card-action .snob-action-btn.btn-confirm-yes {
+					background: #28a745;
+				}
+				#tw-snob-minter .village-card .card-action .snob-action-btn.btn-confirm-no {
+					background: #dc3545;
+				}
+				#tw-snob-minter .village-card .card-action .snob-action-btn:disabled {
+					opacity: 0.5;
+					cursor: not-allowed;
+				}
+				#tw-snob-minter .noble-info {
+					display: flex;
+					flex-wrap: wrap;
+					gap: ${isMobile ? '4px' : '10px'};
+					padding: ${isMobile ? '6px 8px' : '8px 12px'};
+					background: #f5f0e0;
+					border-radius: 6px;
+					border: 1px solid #e0d5c0;
+					margin-bottom: ${isMobile ? '8px' : '15px'};
+					font-size: ${isMobile ? '9px' : '12px'};
+				}
+				#tw-snob-minter .noble-info span {
+					flex: ${isMobile ? '1 1 45%' : '0 1 auto'};
+					white-space: ${isMobile ? 'normal' : 'nowrap'};
+				}
+				#tw-snob-minter .snob-counter {
+					font-size: ${isMobile ? '9px' : '12px'};
+					color: #666;
+					text-align: center;
+					width: ${isMobile ? '100%' : 'auto'};
+				}
+				#tw-snob-minter .progress-container {
+					display: none;
+					margin-bottom: ${isMobile ? '8px' : '15px'};
+					padding: 10px;
+					background: #f0fff0;
+					border: 1px solid #4CAF50;
+					border-radius: 4px;
+				}
+				#tw-snob-minter .progress-container .progress-text {
+					font-size: ${isMobile ? '10px' : '12px'};
+				}
+				#tw-snob-minter .progress-container progress {
+					width: 100%;
+					margin-top: 5px;
+					height: ${isMobile ? '15px' : '20px'};
+				}
+				#tw-snob-minter .help-panel {
+					display: none;
+					margin-bottom: 15px;
+					padding: 15px;
+					background: white;
+					border: 2px solid #6c757d;
+					border-radius: 8px;
+					position: relative;
+					font-size: ${isMobile ? '11px' : '13px'};
+				}
+				#tw-snob-minter .help-panel .help-close {
+					position: absolute;
+					top: 5px;
+					right: 10px;
+					font-size: 20px;
+					background: none;
+					border: none;
+					cursor: pointer;
+					color: #dc3545;
+				}
+				#tw-snob-minter .help-panel h3 {
+					margin-top: 0;
+					color: #6c757d;
+					font-size: ${isMobile ? '14px' : '16px'};
+				}
+				#tw-snob-minter .help-panel .help-content {
+					max-height: 400px;
+					overflow-y: auto;
+					padding: 5px;
+					line-height: 1.8;
 				}
 				@media (max-width: 480px) {
 					#tw-snob-minter {
-						padding: 5px;
-						margin: 5px auto;
+						padding: 4px;
+						margin: 4px auto;
 					}
-					#tw-snob-minter .btn {
-						font-size: 9px;
-						padding: 3px 6px;
+					#tw-snob-minter .village-card {
+						padding: 6px;
+						gap: 4px;
 					}
-					#tw-snob-minter table td, 
-					#tw-snob-minter table th {
-						padding: 3px 2px;
-						font-size: 9px;
+					#tw-snob-minter .village-card .card-name {
+						font-size: 10px;
+						flex: 1 1 80px;
 					}
-					#tw-snob-minter .village-name {
-						font-size: 9px;
+					#tw-snob-minter .village-card .card-status {
+						font-size: 8px;
+						flex: 0 0 60px;
+					}
+					#tw-snob-minter .village-card .card-coord {
+						font-size: 8px;
+						flex: 0 0 55px;
+					}
+					#tw-snob-minter .village-card .card-completion {
+						font-size: 7px;
+					}
+					#tw-snob-minter .controls-row .btn {
+						font-size: 8px;
+						padding: 2px 6px;
+						min-width: 50px;
+					}
+					#tw-snob-minter .noble-info {
+						font-size: 8px;
+						padding: 4px 6px;
 					}
 					#tw-snob-minter .noble-info span {
 						flex: 1 1 100%;
-					}
-					#tw-snob-minter .controls-row .btn {
-						flex: 1 1 auto;
-						font-size: 8px;
-						padding: 2px 4px;
-					}
-				}
-				@media (min-width: 769px) {
-					#tw-snob-minter {
-						padding: 15px;
-					}
-					#tw-snob-minter table td, 
-					#tw-snob-minter table th {
-						padding: 8px 10px;
 					}
 				}
 			`;
@@ -1574,22 +1679,21 @@
 			div.innerHTML = `
 				<div class="header-row">
 					<span class="title">🏰 ${this.t('title')}</span>
-					<span class="last-update" id="snob-last-update" style="font-size: ${isMobile ? '9px' : '11px'}; color: #999; font-weight: normal;"></span>
+					<span class="last-update" id="snob-last-update"></span>
 					<div>
 						<button id="snob-help-btn" class="btn" style="font-size: ${isMobile ? '12px' : '14px'};">❓ ${this.t('help')}</button>
 					</div>
 				</div>
 				
-				<div id="snob-help-panel" style="display: none; margin-bottom: 15px; padding: 15px; background: white; border: 2px solid #6c757d; border-radius: 8px; position: relative;">
-					<button id="snob-help-close" style="position: absolute; top: 5px; right: 10px; font-size: 20px; background: none; border: none; cursor: pointer; color: #dc3545;">✕</button>
-					<h3 style="margin-top: 0; color: #6c757d; font-size: ${isMobile ? '14px' : '16px'};">📖 ${this.t('helpTitle')}</h3>
-					<div style="font-size: ${isMobile ? '11px' : '13px'}; line-height: 1.8; max-height: 400px; overflow-y: auto; padding: 5px;">
+				<div class="help-panel" id="snob-help-panel">
+					<button class="help-close" id="snob-help-close">✕</button>
+					<h3>📖 ${this.t('helpTitle')}</h3>
+					<div class="help-content">
 						${this.t('helpText')}
 					</div>
 				</div>
 				
-				<div id="snob-noble-info" style="margin-bottom: ${isMobile ? '8px' : '15px'};"></div>
-				
+				<div id="snob-noble-info" class="noble-info"></div>
 				<div id="snob-results" style="display: none; margin-bottom: ${isMobile ? '8px' : '15px'};"></div>
 				
 				<div class="controls-row">
@@ -1598,40 +1702,22 @@
 					<button id="snob-deselect-all" class="btn">❌ ${this.t('deselectAll')}</button>
 					<button id="snob-start-btn" class="btn btn-confirm-yes" disabled>▶️ ${this.t('startMinting')}</button>
 					<button id="snob-stop-all-btn" class="btn btn-confirm-no" disabled>⏹️ ${this.t('stopAll')}</button>
-					<span id="snob-counter" style="font-size: ${isMobile ? '9px' : '12px'}; color: #666;"></span>
+					<span class="snob-counter" id="snob-counter"></span>
 				</div>
 				
-				<div id="snob-progress" style="display: none; margin-bottom: ${isMobile ? '8px' : '15px'}; padding: 10px; background: #f0fff0; border: 1px solid #4CAF50; border-radius: 4px;">
-					<div>🔄 ${this.t('progress')}: <span id="snob-progress-text"></span></div>
-					<progress id="snob-progress-bar" value="0" max="100" style="width: 100%; margin-top: 5px; height: ${isMobile ? '15px' : '20px'};"></progress>
+				<div class="progress-container" id="snob-progress">
+					<div class="progress-text">🔄 ${this.t('progress')}: <span id="snob-progress-text"></span></div>
+					<progress id="snob-progress-bar" value="0" max="100"></progress>
 				</div>
 				
-				<div class="table-wrapper">
-					<table class="vis" style="width: 100%; font-size: ${isMobile ? '10px' : '12px'}; min-width: ${isMobile ? '550px' : '700px'}; border-collapse: collapse;">
-						<thead>
-							<tr style="background: #6c757d; color: white;">
-								<th style="width: ${isMobile ? '30px' : '40px'}; padding: ${isMobile ? '4px' : '8px'};">
-									<input type="checkbox" id="snob-header-checkbox" style="width: ${isMobile ? '12px' : '14px'}; height: ${isMobile ? '12px' : '14px'};">
-								</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'};">🏠 ${this.t('village')}</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'};">📍 ${this.t('coordinates')}</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '70px' : '100px'};">📊 ${this.t('status')}</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '50px' : '80px'};">💰 ${this.t('coinsMinted')}</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '70px' : '120px'};">⏰ ${this.t('completion')}</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '50px' : '80px'};">🔄 ${this.t('autoStart')}</th>
-								<th style="padding: ${isMobile ? '4px' : '8px'}; min-width: ${isMobile ? '40px' : '60px'};">⚙️ ${this.t('stop')}</th>
-							</tr>
-						</thead>
-						<tbody id="snob-tbody">
-							<tr><td colspan="8" style="text-align: center; padding: 20px;">${this.t('loading')}</td></tr>
-						</tbody>
-					</table>
+				<div id="snob-cards-container">
+					<div style="text-align: center; padding: 20px; color: #6c757d;">${this.t('loading')}</div>
 				</div>
 			`;
 			
 			contentValue.insertBefore(div, contentValue.firstChild);
 			
-			// Обработчики событий (оставляем как было)
+			// Обработчики событий
 			document.getElementById('snob-refresh-btn')?.addEventListener('click', () => this.refreshVillages());
 			document.getElementById('snob-select-all')?.addEventListener('click', () => this.selectAll());
 			document.getElementById('snob-deselect-all')?.addEventListener('click', () => this.deselectAll());
@@ -1675,7 +1761,7 @@
                 }
                 
                 await this.loadAllMintingStatuses();
-                await this.refreshTable();
+                await this.refreshCards();
                 
                 this.startAutoUpdate();
                 
